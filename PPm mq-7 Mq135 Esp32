@@ -1,0 +1,174 @@
+#include <Wire.h>
+#include <Adafruit_ADS1X15.h>
+#include <math.h>
+#include <Adafruit_Sensor.h>
+
+#define SEALEVELPRESSURE_HPA (1013.25)
+
+float Rs_R0aireMq7 = 26.57;
+float R0Mq7 = 7.48965;
+float resistanceMq7 = 0;
+float ppmairemq7 = 0.0;
+float ppmComq7 = 0.0;
+float volComq7 = 0.0;
+float ppmCH4mq7 = 0.0;
+float ppmLPGmq7 = 0.0;
+float ppmAlcoholmq7 = 0.0;
+float ppmH2mq7 = 0.0;
+float Rs_R0aireMq135 = 3.6;
+float R0Mq135 = 41.80976431;
+float resistanceMq135 = 0;
+float ppmaire1 = 0.0;
+float ppmairemq135 = 0.0;
+float ppmComq135 = 0.0;
+float volCOmq135 = 0.0;
+float ppmNH4mq135 = 0.0;
+float ppmCO2mq135 = 0.0;
+float volCO2mq135 = 0.0;
+float ppmAlcoholmq135 = 0.0;
+float ppmtoluenomq135 = 0.0;
+float ppmAcetonamq135 = 0.0;
+
+float resistance1 = 0.0;
+static float maxResistance1 = 0.0;
+static float maxvoltage1 = 0.0;
+static float minResistance1 = 10000.0;  // Inicializar con un valor alto.
+static float MaxResistance1 = 0.0;
+float resistance2 = 0.0;
+static float maxResistance2 = 0.0;
+static float maxvoltage2 = 0.0;
+static float minResistance2 = 10000.0;  // Inicializar con un valor alto.
+static float MaxResistance2 = 0.0;
+float prevMaxResistance1 = 0.0;
+float prevMaxResistance2 = 0.0;
+
+Adafruit_ADS1115 ads;
+
+unsigned long previousMillis = 0;  // Debes definir el valor inicial apropiado aquí.
+unsigned long interval = 1000;  // Ajusta este valor según tus necesidades.
+
+void setup(void) {
+  Serial.begin(9600);
+  Serial.println("¡Hola!");
+
+  if (!ads.begin()) {
+    Serial.println("Fallo al inicializar ADS. Verifica tus conexiones.");
+    while (1);
+  }
+}
+
+void loop() {
+  unsigned long currentMillis = millis();
+  
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+
+    int16_t adc0, adc1, adc2, adc3;
+    
+    adc0 = ads.readADC_SingleEnded(0);
+    adc1 = ads.readADC_SingleEnded(1);
+    adc2 = ads.readADC_SingleEnded(2);
+    adc3 = ads.readADC_SingleEnded(3);
+    
+    float voltage1 = ((adc1 * 0.1579926138));
+    if (voltage1 > maxvoltage1) {
+      maxvoltage1 = voltage1;
+    }
+    
+    resistance1 = (5 - voltage1) / voltage1;
+    
+    if (resistance1 < minResistance1) {
+      minResistance1 = resistance1;
+    }
+    
+    if (resistance1 > MaxResistance1) {
+      MaxResistance1 = resistance1;
+    } 
+    resistanceMq7 = resistance1 / R0Mq7;
+    
+    //calculo de los ppm con restriciones de resistencia de los limites obtenidos por la curva de calibracion.
+    if (resistanceMq7 >= 16.5 && resistanceMq7 <= 28) {
+      ppmairemq7 = (resistanceMq7 - 16.5) / 0.0025;
+    }
+    ppmAlcoholmq7 = pow(resistanceMq7 / 20.201,-16.39344262);
+       
+    if (resistanceMq7 >= 9.428 && resistanceMq7 < 14.09) {
+      ppmCH4mq7 = pow(resistanceMq7 / 20.402,-10.86956522);
+    }    
+    if (resistanceMq7 >= 4.5762904 && resistanceMq7 < 8.103821481) {
+      ppmLPGmq7 = pow(resistanceMq7 / 13.721,-8.403361345);
+    } 
+    if (resistanceMq7 >= 0.09 && resistanceMq7 < 1.3572) {
+      ppmComq7 = pow(resistanceMq7 / 20.843, -1.51976);
+    }
+    volComq7 = ppmComq7 / 10000; 
+    if (resistanceMq7 >= 0.0 && resistanceMq7 < 1.19) {
+      ppmH2mq7 = pow(resistanceMq7 / 23.704,-1.353179973);
+    }
+
+    float voltage2 = ((adc2 * 0.1600691792));
+    if (voltage2 > maxvoltage2) {
+      maxvoltage2 = voltage2;
+    }
+    
+    resistance2 = ((((5 - voltage2) / voltage2) ));
+    
+    if (resistance2 < minResistance2) {
+      minResistance2 = resistance2;
+    }
+    
+    if (resistance2 > MaxResistance2) {
+      MaxResistance2 = resistance2;
+    }
+
+    resistanceMq135 = resistance2 / R0Mq135;
+    
+    //calculo de los ppm con restriciones de resistencia de los limites obtenidos por la curva de calibracion.
+    if (resistanceMq135 >= 2.8165 &&  resistanceMq135 <= 5){
+      ppmairemq135 = (resistanceMq135 - 2.83) / 0.0039;
+    }    
+    if (resistanceMq7 >= 1.32781184 && resistanceMq135 <=2.816404735) {
+      ppmComq135 =  pow(resistanceMq135 / 5.0199, -3.9841);
+    }  
+    volCOmq135 =  ppmComq135/10000; 
+    if (resistanceMq135 >= 0.7668086999 && resistanceMq135 < 2.55) {
+      ppmNH4mq135 = pow(resistanceMq135 / 6.4521, 1/-0.402);
+    }    
+    if (resistanceMq135 >= 0.70 && resistanceMq135 < 2.318287843) {
+      ppmCO2mq135 = pow(resistanceMq135 / 5.19, 1/-0.35);
+    } 
+    volCO2mq135 = ppmCO2mq135 / 10000;
+    ppmAlcoholmq135 = pow(resistanceMq135 / 3.39737, 1/-0.317);
+  
+    if (resistanceMq135 >= 0.7409153079 && resistanceMq135 < 1.91515963) {
+      ppmtoluenomq135 = pow(resistanceMq135 / 3.0469, 1/-0.292);
+    }
+    if (resistanceMq135 >= 0.4864338315 && resistanceMq135 < 1.444213732) {
+      ppmAcetonamq135 = pow(resistanceMq135 / 2.8486, 1/-0.295);
+    }
+
+    Serial.print("Voltajemq7: "); Serial.println(voltage1);
+    Serial.print("Resistencia1: "); Serial.println(resistance1); 
+    Serial.print("resistanceMq7: "); Serial.println(resistanceMq7); 
+    Serial.print("Valor Máximo de Resistenciamq7: "); Serial.println(MaxResistance1);
+    Serial.print("ppmairemq7: "); Serial.println(ppmairemq7); 
+    Serial.print("ppmAlcoholmq7: "); Serial.println(ppmAlcoholmq7); 
+    Serial.print("ppmCH4mq7: "); Serial.println(ppmCH4mq7); 
+    Serial.print("ppmLPGmq7: "); Serial.println(ppmLPGmq7); 
+    Serial.print("ppmComq7: "); Serial.println(ppmComq7); 
+    Serial.print("ppmH2mq7: "); Serial.println(ppmH2mq7);  
+    Serial.print("Voltajemq135: "); Serial.println(voltage2);
+    Serial.print("Resistenciamq1: "); Serial.println(resistance2); 
+    Serial.print("Resistenciamq135: "); Serial.println(resistanceMq135); 
+    Serial.print("Valor Máximo de Resistenciamq135: "); Serial.println(MaxResistance2);
+    Serial.print("ppmairemq135: "); Serial.println(ppmairemq135); 
+    Serial.print("ppmComq135: "); Serial.println(ppmComq135); 
+    Serial.print("ppmNH4mq135: "); Serial.println(ppmNH4mq135); 
+    Serial.print("ppmCO2mq135: "); Serial.println(ppmCO2mq135); 
+    Serial.print("ppmAlcoholmq135: "); Serial.println(ppmAlcoholmq135); 
+    Serial.print("ppmtoluenomq135: "); Serial.println(ppmtoluenomq135);
+    Serial.print("ppmAcetonamq135: "); Serial.println(ppmAcetonamq135);
+      
+    delay(1000);  // Espera 1 segundo antes de la siguiente lectura.
+  }
+}
